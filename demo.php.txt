@@ -1,0 +1,156 @@
+<?php
+/**
+ * Demo content of the WordPress Playground demo (blueprint.json runs it once, after the plugin is installed): three
+ * forms that show the field types, conditions, the output and count fields and starting values, and a page with
+ * them. Playground can't send mail, so the forms skip it and every message lands in Entries.
+ */
+
+if ( !defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+use VLT\Remaily\Core\Config;
+use VLT\Remaily\Core\PostType;
+use VLT\Remaily\Forms\Form;
+
+// A label around a token, as the starter writes it
+$remaily_demo_label = static function ( $text, $token, $required = false ) {
+	return sprintf( "<label>\n\t%s%s\n\t%s\n</label>", $text, $required ? ' *' : '', $token );
+};
+
+// Options under a legend
+$remaily_demo_choices = static function ( $legend, $token ) {
+	return sprintf( "<fieldset>\n\t<legend>%s</legend>\n\t%s\n</fieldset>", $legend, $token );
+};
+
+// title => [ intro, template, settings ]
+$remaily_demo_forms = [
+	'Contact'       => [
+		'The everyday form: name, email and a message with a character count. Open this page with ?topic=Pricing in the address and the subject fills itself.',
+		implode( "\n", [
+			$remaily_demo_label( 'Your name', '[[your_name]]', true ),
+			$remaily_demo_label( 'Your email', '[[your_email]]', true ),
+			$remaily_demo_label( 'Subject', '[[your_subject]]' ),
+			$remaily_demo_label( 'Your message', "[[your_message]]\n\t[[message_count]]", true ),
+			'[[submit]]',
+		] ),
+		[
+			'fields' => [
+				'your_name'     => [ 'type' => 'text', 'required' => true, 'autocomplete' => 'name' ],
+				'your_email'    => [ 'type' => 'email', 'required' => true, 'autocomplete' => 'email' ],
+				'your_subject'  => [ 'type' => 'text', 'default_from' => 'get', 'default_key' => 'topic' ],
+				'your_message'  => [ 'type' => 'textarea', 'required' => true, 'maxlength' => 500 ],
+				'message_count' => [ 'type' => 'count', 'source' => 'your_message', 'format' => '{left} characters left' ],
+				'submit'        => [ 'type' => 'submit', 'label' => 'Send' ],
+			],
+		],
+	],
+	'Quote request' => [
+		'Conditions at work: pick "A company" and the company fields show up. The output under the name greets you as you type.',
+		implode( "\n", [
+			$remaily_demo_label( 'Your name', "[[name]]\n\t[[greeting]]", true ),
+			$remaily_demo_label( 'Your email', '[[email]]', true ),
+			$remaily_demo_choices( "I'm asking as", '[[asking_as]]' ),
+			'[[group:company]]',
+			$remaily_demo_label( 'Company', '[[company]]', true ),
+			$remaily_demo_label( 'Team size', '[[team_size]]' ),
+			'[[/group]]',
+			$remaily_demo_label( 'What do you need?', '[[service]]', true ),
+			$remaily_demo_label( 'Budget, in euros', '[[budget]]' ),
+			$remaily_demo_label( 'Start date', '[[start]]' ),
+			$remaily_demo_label( 'Anything else?', '[[details]]' ),
+			'[[submit]]',
+		] ),
+		[
+			'fields' => [
+				'name'      => [ 'type' => 'text', 'required' => true, 'autocomplete' => 'name' ],
+				'greeting'  => [ 'type' => 'output', 'source' => 'name', 'format' => 'Nice to meet you, {value}.' ],
+				'email'     => [ 'type' => 'email', 'required' => true, 'autocomplete' => 'email' ],
+				'asking_as' => [ 'type' => 'radio', 'options' => [ [ 'value' => 'person', 'label' => 'A person' ], [ 'value' => 'company', 'label' => 'A company' ] ] ],
+				'company'   => [ 'type' => 'text', 'required' => true, 'autocomplete' => 'organization' ],
+				'team_size' => [ 'type' => 'number', 'min' => 1, 'max' => 10000 ],
+				'service'   => [ 'type' => 'select', 'required' => true, 'options' => [ [ 'value' => 'site', 'label' => 'A new website' ], [ 'value' => 'shop', 'label' => 'An online shop' ], [ 'value' => 'care', 'label' => 'Care for a site I have' ] ] ],
+				'budget'    => [ 'type' => 'number', 'min' => 0, 'step' => 100 ],
+				'start'     => [ 'type' => 'date' ],
+				'details'   => [ 'type' => 'textarea', 'rows' => 4 ],
+				'submit'    => [ 'type' => 'submit', 'label' => 'Ask for a quote' ],
+			],
+			'groups' => [
+				'company' => [ 'action' => 'show', 'match' => 'all', 'rules' => [ [ 'field' => 'asking_as', 'op' => 'is', 'value' => 'company' ] ] ],
+			],
+		],
+	],
+	'Event sign-up' => [
+		'Checkboxes, one-at-a-time choices, a file, a quiz against bots and a box to tick. A hidden field keeps where visitors came from (?ref=… in the address).',
+		implode( "\n", [
+			$remaily_demo_label( 'Your name', '[[guest]]', true ),
+			$remaily_demo_label( 'Your email', '[[guest_email]]', true ),
+			$remaily_demo_choices( 'Which days? *', '[[days]]' ),
+			$remaily_demo_choices( 'Lunch (one at most)', '[[lunch]]' ),
+			$remaily_demo_label( 'A photo for your badge', '[[photo]]' ),
+			$remaily_demo_label( 'Quick check', '[[check]]', true ),
+			'[[terms]]',
+			'[[ref]]',
+			'[[submit]]',
+		] ),
+		[
+			'fields' => [
+				'guest'       => [ 'type' => 'text', 'required' => true, 'autocomplete' => 'name' ],
+				'guest_email' => [ 'type' => 'email', 'required' => true, 'autocomplete' => 'email' ],
+				'days'        => [ 'type' => 'checkbox', 'required' => true, 'options' => [ [ 'value' => 'fri', 'label' => 'Friday' ], [ 'value' => 'sat', 'label' => 'Saturday' ], [ 'value' => 'sun', 'label' => 'Sunday' ] ] ],
+				'lunch'       => [ 'type' => 'checkbox', 'exclusive' => true, 'options' => [ [ 'value' => 'meat', 'label' => 'Meat' ], [ 'value' => 'veggie', 'label' => 'Vegetarian' ], [ 'value' => 'vegan', 'label' => 'Vegan' ] ] ],
+				'photo'       => [ 'type' => 'file', 'accept' => 'jpg, jpeg, png, webp', 'max_size' => '2' ],
+				'check'       => [ 'type' => 'quiz', 'questions' => [ [ 'question' => '2 + 3 = ?', 'answer' => '5' ], [ 'question' => 'The color of the sky on a clear day?', 'answer' => 'blue' ] ] ],
+				'terms'       => [ 'type' => 'acceptance', 'content' => 'I agree that you keep my details until the event is over.' ],
+				'ref'         => [ 'type' => 'hidden', 'default' => 'direct', 'default_from' => 'get' ],
+				'submit'      => [ 'type' => 'submit', 'label' => 'Sign me up' ],
+			],
+		],
+	],
+];
+
+$remaily_demo_content = '<!-- wp:paragraph --><p>Each form below is a Re:Maily form. Send one: Playground has no mail, so the messages go straight to Contact Form → Entries. Open a form in Contact Form → Contact Forms to see how it is made.</p><!-- /wp:paragraph -->' . "\n";
+
+foreach ( $remaily_demo_forms as $title => [ $intro, $template, $config ] ) {
+	$id = wp_insert_post( [
+		'post_type'    => PostType::NAME,
+		'post_status'  => 'publish',
+		'post_title'   => $title,
+		'post_content' => $template,
+	] );
+
+	if ( !$id || is_wp_error( $id ) ) {
+		continue;
+	}
+
+	// No mail in Playground: the message is still saved, and visitors see it went through
+	Config::save( $id, $config + [ 'settings' => [ 'skip_mail' => true, 'store_entries' => true ] ] );
+
+	$remaily_demo_content .= sprintf(
+		"<!-- wp:heading --><h2 class=\"wp-block-heading\">%s</h2><!-- /wp:heading -->\n<!-- wp:paragraph --><p>%s</p><!-- /wp:paragraph -->\n<!-- wp:shortcode -->[remaily id=\"%s\"]<!-- /wp:shortcode -->\n",
+		esc_html( $title ),
+		esc_html( $intro ),
+		esc_attr( Form::hash_of( $id ) )
+	);
+}
+
+// A page with every form, the site's home page
+$remaily_demo_page = wp_insert_post( [
+	'post_type'    => 'page',
+	'post_status'  => 'publish',
+	'post_title'   => 'Re:Maily demo',
+	'post_name'    => 'remaily-demo',
+	'post_content' => $remaily_demo_content,
+] );
+
+if ( $remaily_demo_page && !is_wp_error( $remaily_demo_page ) ) {
+	update_option( 'show_on_front', 'page' );
+	update_option( 'page_on_front', $remaily_demo_page );
+}
+
+// A demo opens where the blueprint says: no welcome redirect, no request for a review
+delete_transient( 'remaily_welcome_redirect' );
+update_option( 'remaily_review', 'done', false );
+
+update_option( 'permalink_structure', '/%postname%/' );
+flush_rewrite_rules();
