@@ -37,20 +37,20 @@
 		{
 			"step": "installPlugin",
 			"pluginData": {
-				"resource": "url",
-				"url": "https://raw.githubusercontent.com/vlthemes/remaily-playground/main/remaily.zip"
+				"resource": "wordpress.org",
+				"slug": "remaily"
 			},
 			"options": {
 				"activate": true
 			}
-		},
+		},	
 		{
 			"step": "mkdir",
-			"path": "/wordpress/wp-content/reform-demo"
+			"path": "/wordpress/wp-content/remaily-demo"
 		},
 		{
 			"step": "writeFile",
-			"path": "/wordpress/wp-content/reform-demo/demo.php",
+			"path": "/wordpress/wp-content/remaily-demo/demo.php",
 			"data": {
 				"resource": "url",
 				"url": "https://raw.githubusercontent.com/vlthemes/remaily-playground/main/demo.php.txt"
@@ -58,7 +58,7 @@
 		},
 		{
 			"step": "runPHP",
-			"code": "<?php require '/wordpress/wp-load.php'; require WP_CONTENT_DIR . '/reform-demo/demo.php';"
+			"code": "<?php require '/wordpress/wp-load.php'; require WP_CONTENT_DIR . '/remaily-demo/demo.php';"
 		}
 	]
 }
