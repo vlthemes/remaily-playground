@@ -1,8 +1,9 @@
 <?php
 /**
- * Demo content of the WordPress Playground demo (blueprint.json runs it once, after the plugin is installed): three
- * forms that show the field types, conditions, the output and count fields and starting values, and a page with
- * them. Playground can't send mail, so the forms skip it and every message lands in Entries.
+ * Demo content of the WordPress Playground demo (blueprint.json runs it once, after the plugin is installed): one page,
+ * the home page, with a form of every field type (added as a theme adds a ready form), in Blocksy. The other ready
+ * forms are a click away in Add New. Playground can't send mail, so the form skips it and every message lands in
+ * Entries. Re:Maily before 1.0.1 has no ready forms: then the three hand-made forms below are used.
  */
 
 if ( !defined( 'ABSPATH' ) ) {
@@ -12,6 +13,7 @@ if ( !defined( 'ABSPATH' ) ) {
 use VLT\Remaily\Core\Config;
 use VLT\Remaily\Core\PostType;
 use VLT\Remaily\Forms\Form;
+use VLT\Remaily\Forms\Presets;
 
 // A label around a token, as the starter writes it
 $remaily_demo_label = static function ( $text, $token, $required = false ) {
@@ -109,26 +111,124 @@ $remaily_demo_forms = [
 	],
 ];
 
-$remaily_demo_content = '<!-- wp:paragraph --><p>Each form below is a Re:Maily form. Send one: Playground has no mail, so the messages go straight to Contact Form → Entries. Open a form in Contact Form → Contact Forms to see how it is made.</p><!-- /wp:paragraph -->' . "\n";
+// The form with every field: the demo's own ready form, made as a theme makes one (remaily_form_presets)
+add_filter( 'remaily_form_presets', static function ( $presets ) {
+	$label = static fn( $text, $token, $required = false ) => sprintf( "<label>\n\t%s%s\n\t%s\n</label>", $text, $required ? ' *' : '', $token );
+	$row   = static fn( ...$labels ) => "<div class=\"remaily-row\">\n" . implode( "\n", $labels ) . "\n</div>";
+	$mail  = static fn( $subject ) => [ 'subject' => '[_site_title] ' . $subject, 'body' => "[_all_fields]\n\n-- \nSent from [_site_title] ([_url])." ];
+	$send  = static fn( $label ) => [ 'type' => 'submit', 'label' => $label ];
 
-foreach ( $remaily_demo_forms as $title => [ $intro, $template, $config ] ) {
-	$id = wp_insert_post( [
-		'post_type'    => PostType::NAME,
-		'post_status'  => 'publish',
-		'post_title'   => $title,
-		'post_content' => $template,
-	] );
+	return $presets + [
+		'every-field' => [
+			'title'       => 'Every field',
+			'description' => 'All the field types, groups and conditions: to try your theme\'s look, or to learn what each does.',
+			'template'    => implode( "\n", [
+				'<h3>Every field</h3>',
+				$row( $label( 'Your name', '[[your_name]]', true ), $label( 'Email', '[[your_email]]', true ) ),
+				$label( 'Email again', '[[email_again]]', true ),
+				'<p>Hello, [[hello]]!</p>',
+				$row( $label( 'Website', '[[site]]' ), $label( 'Phone', '[[phone]]' ) ),
+				$row( $label( 'Guests', '[[guests_count]]' ), $label( 'Date', '[[visit]]' ) ),
+				$row( $label( 'Time', '[[visit_time]]' ), $label( 'Distance', '[[distance]]' ) ),
+				$label( 'Country', '[[country]]' ),
+				$label( 'Plan', '[[plan]]' ),
+				'[[group:business]]',
+				$label( 'Company', '[[company]]' ),
+				'[[/group]]',
+				'<fieldset><legend>Interests</legend>[[interests]]</fieldset>',
+				'<fieldset><legend>Size</legend>[[size]]</fieldset>',
+				'<p>How did we do? [[stars]]</p>',
+				$label( 'Message', '[[message]]' ),
+				'[[left]]',
+				'[[group:guests]]',
+				$label( 'Guest\'s name', '[[guest]]' ),
+				'[[/group]]',
+				$label( 'A file', '[[upload]]' ),
+				'[[quiz]]',
+				'[[agree]]',
+				'[[ref]]',
+				'[[submit]]',
+				'[[response]]',
+			] ),
+			'config'      => [
+				'fields' => [
+					'your_name'    => [ 'type' => 'text', 'required' => true, 'autocomplete' => 'name' ],
+					'your_email'   => [ 'type' => 'email', 'required' => true, 'autocomplete' => 'email' ],
+					'email_again'  => [ 'type' => 'confirm', 'required' => true, 'placeholder' => 'Type your email again' ],
+					'hello'        => [ 'type' => 'output', 'source' => 'your_name', 'format' => '{value}', 'empty' => 'friend' ],
+					'site'         => [ 'type' => 'url', 'placeholder' => 'https://' ],
+					'phone'        => [ 'type' => 'tel', 'mask' => 'pick', 'countries' => 'us, gb, de, fr, es, it, pl, cz' ],
+					'guests_count' => [ 'type' => 'number', 'min' => 1, 'max' => 20 ],
+					'visit'        => [ 'type' => 'date', 'min' => 'today' ],
+					'visit_time'   => [ 'type' => 'time', 'min' => '09:00', 'max' => '18:00', 'step' => '15' ],
+					'distance'     => [ 'type' => 'range', 'min' => '0', 'max' => '50', 'step' => '5', 'format' => '{value} km' ],
+					'country'      => [ 'type' => 'country' ],
+					'plan'         => [ 'type' => 'select', 'options' => [ [ 'value' => 'personal', 'label' => 'Personal' ], [ 'value' => 'business', 'label' => 'Business' ] ] ],
+					'company'      => [ 'type' => 'text' ],
+					'interests'    => [ 'type' => 'checkbox', 'options' => [ [ 'value' => 'design', 'label' => 'Design' ], [ 'value' => 'code', 'label' => 'Code' ], [ 'value' => 'marketing', 'label' => 'Marketing' ] ] ],
+					'size'         => [ 'type' => 'radio', 'options' => [ [ 'value' => 's', 'label' => 'Small' ], [ 'value' => 'm', 'label' => 'Medium' ], [ 'value' => 'l', 'label' => 'Large' ] ] ],
+					'stars'        => [ 'type' => 'rating', 'stars' => 5 ],
+					'message'      => [ 'type' => 'textarea', 'maxlength' => 500, 'rows' => 4 ],
+					'left'         => [ 'type' => 'count', 'source' => 'message', 'format' => '{left} characters left', 'format_empty' => 'Up to {max} characters' ],
+					'guest'        => [ 'type' => 'text' ],
+					'upload'       => [ 'type' => 'file' ],
+					'quiz'         => [ 'type' => 'quiz', 'questions' => [ [ 'question' => '2 + 3 = ?', 'answer' => '5' ] ] ],
+					'agree'        => [ 'type' => 'acceptance', 'content' => 'I agree to the terms' ],
+					'ref'          => [ 'type' => 'hidden', 'default' => 'every-field' ],
+					'submit'       => $send( 'Send' ),
+				],
+				'groups' => [
+					// Shown for a business only: a condition
+					'business' => [ 'rules' => [ [ 'field' => 'plan', 'op' => 'is', 'value' => 'business' ] ] ],
+					'guests'   => [ 'repeat' => true, 'min' => 1, 'max' => 5, 'add' => 'Add a guest' ],
+				],
+				'mail'   => $mail( 'Every field' ),
+			],
+		],
+	];
+} );
 
-	if ( !$id || is_wp_error( $id ) ) {
-		continue;
+// No mail in Playground: the message is still saved, and visitors see it went through
+$remaily_demo_no_mail = static function ( $id ) {
+	$config             = Config::get( $id );
+	$config['settings'] = array_merge( (array) ( $config['settings'] ?? [] ), [ 'skip_mail' => true, 'store_entries' => true ] );
+	Config::save( $id, $config );
+};
+
+// title => [ intro, form ID ]
+$remaily_demo_made = [];
+
+if ( class_exists( Presets::class ) ) {
+	$id = Presets::create( 'every-field' );
+
+	if ( $id && !is_wp_error( $id ) ) {
+		$remaily_demo_no_mail( $id );
+		$remaily_demo_made[ get_the_title( $id ) ] = [ 'Every field type at once: a phone with its country and mask, a country list with flags, a date, a time, a slider, stars, "type your email again", an output that greets you, a character count, a group that shows for a company and rows guests add themselves.', $id ];
 	}
+} else {
+	foreach ( $remaily_demo_forms as $title => [ $intro, $template, $config ] ) {
+		$id = wp_insert_post( [
+			'post_type'    => PostType::NAME,
+			'post_status'  => 'publish',
+			'post_title'   => $title,
+			'post_content' => $template,
+		] );
 
-	// No mail in Playground: the message is still saved, and visitors see it went through
-	Config::save( $id, $config + [ 'settings' => [ 'skip_mail' => true, 'store_entries' => true ] ] );
+		if ( $id && !is_wp_error( $id ) ) {
+			Config::save( $id, $config );
+			$remaily_demo_no_mail( $id );
+			$remaily_demo_made[ $title ] = [ $intro, $id ];
+		}
+	}
+}
 
+$remaily_demo_content = '<!-- wp:paragraph --><p>A Re:Maily form. Send it: Playground has no mail, so the message goes straight to Contact Form → Entries. Open the form in Contact Form → Contact Forms to see how it is made, or click Add New to start from another ready form: a quote in steps, a callback, feedback.</p><!-- /wp:paragraph -->' . "\n";
+
+foreach ( $remaily_demo_made as $title => [ $intro, $id ] ) {
+	// Several forms (Re:Maily before 1.0.1) get a heading each
 	$remaily_demo_content .= sprintf(
-		"<!-- wp:heading --><h2 class=\"wp-block-heading\">%s</h2><!-- /wp:heading -->\n<!-- wp:paragraph --><p>%s</p><!-- /wp:paragraph -->\n<!-- wp:shortcode -->[remaily id=\"%s\"]<!-- /wp:shortcode -->\n",
-		esc_html( $title ),
+		"%s<!-- wp:paragraph --><p>%s</p><!-- /wp:paragraph -->\n<!-- wp:shortcode -->[remaily id=\"%s\"]<!-- /wp:shortcode -->\n",
+		count( $remaily_demo_made ) > 1 ? '<!-- wp:heading --><h2 class="wp-block-heading">' . esc_html( $title ) . '</h2><!-- /wp:heading -->' . "\n" : '',
 		esc_html( $intro ),
 		esc_attr( Form::hash_of( $id ) )
 	);

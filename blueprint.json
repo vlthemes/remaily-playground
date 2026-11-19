@@ -27,8 +27,8 @@
 		{
 			"step": "installTheme",
 			"themeData": {
-				"resource": "url",
-				"url": "https://raw.githubusercontent.com/vlthemes/remaily-playground/main/theme.zip"
+				"resource": "wordpress.org/themes",
+				"slug": "blocksy"
 			},
 			"options": {
 				"activate": true
